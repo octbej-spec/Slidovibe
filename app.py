@@ -125,8 +125,16 @@ if mode == "Participant 🙋‍♂️":
     
     # Récupérer la question active globale en DB
     active_qid = get_active_question_id()
-    active_q_text = QUESTIONS.get(active_qid, QUESTIONS[0])
+    active_q_text = QUESTIONS.get(active_qid, f"Question {active_qid}")
     
+    # Initialiser l'état de soumission
+    if "submitted_question_id" not in st.session_state:
+        st.session_state.submitted_question_id = None
+        
+    # Si la question active globale change, on réinitialise l'état pour permettre une nouvelle saisie
+    if st.session_state.submitted_question_id != active_qid:
+        st.session_state.submitted_question_id = None
+        
     # Affichage de la question active de façon élégante
     st.markdown(f"""
         <div class="question-card">
@@ -135,33 +143,47 @@ if mode == "Participant 🙋‍♂️":
         </div>
     """, unsafe_allow_html=True)
     
-    # Initialisation de la session state pour éviter les doubles clics rapides
-    if "last_submitted" not in st.session_state:
-        st.session_state.last_submitted = None
-
-    # Formulaire de réponse (vide le champ après soumission)
-    with st.form("participant_form", clear_on_submit=True):
-        user_input = st.text_input(
-            "Votre réponse (un mot, une courte phrase) :",
-            placeholder="Tapez ici...",
-            max_chars=100
-        )
-        submit_btn = st.form_submit_button("Envoyer ma réponse")
+    # Si le participant a déjà soumis sa réponse pour cette question
+    if st.session_state.submitted_question_id == active_qid:
+        st.success("🎉 Réponse enregistrée ! Merci pour votre participation.")
+        st.info("⌛ En attente de la prochaine question...")
         
-        if submit_btn:
-            cleaned = user_input.strip()
-            if not cleaned:
-                st.error("⚠️ La réponse ne peut pas être vide. Veuillez saisir du texte.")
-            elif st.session_state.last_submitted == cleaned:
-                st.warning("⚠️ Vous venez déjà de soumettre cette réponse. Modifiez-la pour en envoyer une autre.")
-            else:
-                # Tentative d'insertion en base de données
-                success = insert_response(active_qid, active_q_text, cleaned)
-                if success:
-                    st.success("🎉 Réponse enregistrée ! Merci pour votre participation.")
-                    st.session_state.last_submitted = cleaned
+        # Auto-refresh passif de 3s en attente du changement de question (évité en test unitaire)
+        import sys
+        is_testing = "streamlit.testing" in sys.modules
+        if not is_testing:
+            import time
+            time.sleep(3)
+            st.rerun()
+    else:
+        # Initialisation de la session state pour éviter les doubles clics rapides
+        if "last_submitted" not in st.session_state:
+            st.session_state.last_submitted = None
+
+        # Formulaire de réponse (vide le champ après soumission)
+        with st.form("participant_form", clear_on_submit=True):
+            user_input = st.text_input(
+                "Votre réponse (un mot, une courte phrase) :",
+                placeholder="Tapez ici...",
+                max_chars=100
+            )
+            submit_btn = st.form_submit_button("Envoyer ma réponse")
+            
+            if submit_btn:
+                cleaned = user_input.strip()
+                if not cleaned:
+                    st.error("⚠️ La réponse ne peut pas être vide. Veuillez saisir du texte.")
+                elif st.session_state.last_submitted == cleaned:
+                    st.warning("⚠️ Vous venez déjà de soumettre cette réponse. Modifiez-la pour en envoyer une autre.")
                 else:
-                    st.warning("⚠️ Cette réponse a été enregistrée récemment. Saisissez une idée différente.")
+                    # Tentative d'insertion en base de données
+                    success = insert_response(active_qid, active_q_text, cleaned)
+                    if success:
+                        st.session_state.last_submitted = cleaned
+                        st.session_state.submitted_question_id = active_qid
+                        st.rerun() # Recharger immédiatement pour basculer sur l'écran "En attente"
+                    else:
+                        st.warning("⚠️ Cette réponse a été enregistrée récemment. Saisissez une idée différente.")
 
 # ----------------- MODE ANIMATEUR -----------------
 else:
