@@ -135,6 +135,11 @@ if mode == "Participant 🙋‍♂️":
     if st.session_state.submitted_question_id != active_qid:
         st.session_state.submitted_question_id = None
         
+    # Si toutes les réponses ont été effacées en DB (réinitialisation),
+    # on déverrouille l'écran pour permettre à nouveau la saisie.
+    if get_responses(active_qid).empty:
+        st.session_state.submitted_question_id = None
+        
     # Affichage de la question active de façon élégante
     st.markdown(f"""
         <div class="question-card">
@@ -224,7 +229,8 @@ else:
             st.write("Réinitialiser les questions :")
             if st.button("Réinitialiser par défaut 🔄", key="reset_questions_btn"):
                 reset_questions_db()
-                st.success("Questions réinitialisées !")
+                delete_all_responses() # Effacer également toutes les réponses !
+                st.success("Questions réinitialisées et réponses effacées !")
                 st.rerun()
                 
         with col_num:
