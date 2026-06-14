@@ -457,17 +457,29 @@ else:
             st.markdown("---")
             col_next_1, col_next_2 = st.columns([2, 1])
             with col_next_2:
-                if st.button("➡️ Question suivante", key="next_question_wordcloud_btn", use_container_width=True):
-                    q_keys = list(QUESTIONS.keys())
-                    if q_keys:
+                q_keys = list(QUESTIONS.keys())
+                is_last_question = False
+                if q_keys:
+                    try:
+                        curr_idx = q_keys.index(selected_qid)
+                        is_last_question = (curr_idx == len(q_keys) - 1)
+                    except ValueError:
+                        pass
+                
+                if st.button(
+                    "➡️ Question suivante", 
+                    key="next_question_wordcloud_btn", 
+                    use_container_width=True,
+                    disabled=is_last_question
+                ):
+                    if q_keys and not is_last_question:
                         try:
                             curr_idx = q_keys.index(selected_qid)
-                            next_idx = (curr_idx + 1) % len(q_keys)
-                            next_qid = q_keys[next_idx]
-                        except ValueError:
-                            next_qid = q_keys[0]
-                        set_active_question_id(next_qid)
-                        st.rerun()
+                            next_qid = q_keys[curr_idx + 1]
+                            set_active_question_id(next_qid)
+                            st.rerun()
+                        except (ValueError, IndexError):
+                            pass
         
         # Onglet 2 : Tableau des réponses
         with tab_table:
