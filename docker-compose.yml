@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  radar-stm:
+    build: .
+    container_name: radar-ingenierie-stm
+    ports:
+      - "8080:8080"
+    volumes:
+      # Montage de volume pour s'assurer que la base de données persiste sur la machine hôte
+      - ./data:/app/data
+    environment:
+      # Définir le mot de passe de l'administrateur
+      - ADMIN_PASSWORD=stm_admin_2026
+    restart: always
