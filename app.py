@@ -376,6 +376,22 @@ else:
                     top_words = word_series.value_counts().head(5).reset_index()
                     top_words.columns = ['Mot', 'Occurrences']
                     st.dataframe(top_words, use_container_width=True, hide_index=True)
+            
+            # Bouton de contrôle pour passer à la question suivante en direct
+            st.markdown("---")
+            col_next_1, col_next_2 = st.columns([2, 1])
+            with col_next_2:
+                if st.button("➡️ Question suivante", key="next_question_wordcloud_btn", use_container_width=True):
+                    q_keys = list(QUESTIONS.keys())
+                    if q_keys:
+                        try:
+                            curr_idx = q_keys.index(selected_qid)
+                            next_idx = (curr_idx + 1) % len(q_keys)
+                            next_qid = q_keys[next_idx]
+                        except ValueError:
+                            next_qid = q_keys[0]
+                        set_active_question_id(next_qid)
+                        st.rerun()
         
         # Onglet 2 : Tableau des réponses
         with tab_table:
