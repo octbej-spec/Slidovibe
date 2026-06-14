@@ -220,6 +220,92 @@ else:
     if not authenticated:
         st.info("Veuillez saisir le mot de passe administrateur dans le volet de gauche pour déverrouiller le Dashboard Animateur.")
     else:
+        if "fullscreen_mode" not in st.session_state:
+            st.session_state.fullscreen_mode = False
+            
+        if st.session_state.fullscreen_mode:
+            # Injection CSS pour cacher la sidebar, le header et le footer
+            st.markdown("""
+                <style>
+                [data-testid="stSidebar"] { display: none !important; }
+                header, [data-testid="stHeader"], footer { display: none !important; }
+                .stm-header { display: none !important; }
+                .block-container {
+                    padding-top: 1rem !important;
+                    padding-bottom: 1rem !important;
+                    max-width: 100% !important;
+                }
+                #MainMenu {visibility: hidden;}
+                </style>
+            """, unsafe_allow_html=True)
+            
+            current_active_qid = get_active_question_id()
+            active_q_text = QUESTIONS.get(current_active_qid, f"Question {current_active_qid}")
+            
+            st.markdown(f"""
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h1 style="font-size: 2.8rem; color: #005696; font-weight: 800; margin-bottom: 5px; font-family: 'Outfit', 'Inter', sans-serif;">
+                        Radar Ingénierie STM
+                    </h1>
+                    <div style="background-color: #FFFFFF; border-left: 10px solid #005696; padding: 20px; border-radius: 4px 16px 16px 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); display: inline-block; width: 100%; text-align: left;">
+                        <span style="font-size: 0.9rem; font-weight: bold; color: #005696; text-transform: uppercase; letter-spacing: 1px;">Question active</span>
+                        <h2 style="margin-top: 5px; font-size: 2rem; color: #1E293B; font-weight: 700; line-height: 1.3;">{active_q_text}</h2>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            df_active = get_responses(current_active_qid)
+            
+            if df_active.empty:
+                st.info("Aucune réponse pour le moment pour cette question. Invitez les participants à répondre !")
+            else:
+                fig = generate_wordcloud(df_active)
+                if fig:
+                    st.pyplot(fig)
+                else:
+                    st.warning("Impossible de générer le nuage de mots. (Aucun contenu textuel exploitable après filtrage)")
+            
+            st.markdown("---")
+            
+            # Navigation
+            q_keys = list(QUESTIONS.keys())
+            is_last_question = False
+            if q_keys:
+                try:
+                    curr_idx = q_keys.index(current_active_qid)
+                    is_last_question = (curr_idx == len(q_keys) - 1)
+                except ValueError:
+                    pass
+            
+            col_fs_1, col_fs_2 = st.columns([1, 1])
+            with col_fs_1:
+                if st.button("❌ Quitter le plein écran", key="exit_fs_btn", use_container_width=True):
+                    st.session_state.fullscreen_mode = False
+                    st.rerun()
+            with col_fs_2:
+                if st.button(
+                    "➡️ Question suivante", 
+                    key="next_fs_btn", 
+                    use_container_width=True,
+                    disabled=is_last_question
+                ):
+                    if q_keys and not is_last_question:
+                        try:
+                            curr_idx = q_keys.index(current_active_qid)
+                            next_qid = q_keys[curr_idx + 1]
+                            set_active_question_id(next_qid)
+                            st.rerun()
+                        except (ValueError, IndexError):
+                            pass
+            
+            # Auto-refresh de 2s en mode plein écran
+            import sys
+            import time
+            if "streamlit.testing" not in sys.modules:
+                time.sleep(2)
+                st.rerun()
+            st.stop()
+            
         st.subheader("🎙️ Tableau de bord de l'animateur")
         
         # --- CONFIGURATION DYNAMIQUE DES QUESTIONS ---
@@ -390,12 +476,19 @@ else:
         except ValueError:
             default_index = 0
             
-        selected_qid = st.selectbox(
-            "Définir la question active pour tous les participants :",
-            q_keys,
-            index=default_index,
-            format_func=lambda x: f"Q{x} : {QUESTIONS[x]}"
-        )
+        col_ctrl_1, col_ctrl_2 = st.columns([3, 1])
+        with col_ctrl_1:
+            selected_qid = st.selectbox(
+                "Définir la question active pour tous les participants :",
+                q_keys,
+                index=default_index,
+                format_func=lambda x: f"Q{x} : {QUESTIONS[x]}"
+            )
+        with col_ctrl_2:
+            st.write("Projection :")
+            if st.button("📺 Plein écran", key="enter_fs_btn", use_container_width=True):
+                st.session_state.fullscreen_mode = True
+                st.rerun()
         
         # Si l'animateur change la question active, on met à jour la base de données
         if selected_qid != current_active_qid:
