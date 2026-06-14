@@ -12,7 +12,10 @@ from src.database import (
     set_active_question_id,
     get_questions_db,
     save_questions_db,
-    reset_questions_db
+    reset_questions_db,
+    save_template,
+    get_all_templates,
+    delete_template
 )
 from src.wordcloud_utils import generate_wordcloud, FRENCH_STOP_WORDS
 from src.export_utils import export_to_csv, export_to_excel
@@ -223,15 +226,46 @@ else:
         st.markdown("### ⚙️ Configuration des questions")
         
         # 1. Réinitialiser les questions par défaut
-        # 2. Choisir le nombre de questions
-        col_reset, col_num = st.columns([1, 1])
+        # 2. Charger un modèle sauvegardé
+        # 3. Choisir le nombre de questions
+        
+        # Récupérer les modèles sauvegardés
+        saved_templates = get_all_templates()
+        
+        col_reset, col_template, col_num = st.columns([1, 1, 1])
         with col_reset:
             st.write("Réinitialiser les questions :")
-            if st.button("Réinitialiser par défaut 🔄", key="reset_questions_btn"):
+            if st.button("Réinitialiser par défaut 🔄", key="reset_questions_btn", use_container_width=True):
                 reset_questions_db()
                 delete_all_responses() # Effacer également toutes les réponses !
                 st.success("Questions réinitialisées et réponses effacées !")
                 st.rerun()
+                
+        with col_template:
+            st.write("Charger un modèle sauvegardé :")
+            if not saved_templates:
+                st.caption("Aucun modèle sauvegardé.")
+            else:
+                template_options = list(saved_templates.keys())
+                selected_tpl = st.selectbox(
+                    "Choisir un modèle :",
+                    options=["-- Sélectionner --"] + template_options,
+                    label_visibility="collapsed",
+                    key="load_template_selectbox"
+                )
+                if selected_tpl != "-- Sélectionner --":
+                    col_tpl_actions = st.columns(2)
+                    with col_tpl_actions[0]:
+                        if st.button("Charger 📥", key="load_tpl_btn", use_container_width=True):
+                            save_questions_db(saved_templates[selected_tpl])
+                            delete_all_responses() # Effacer les réponses pour ce nouveau questionnaire
+                            st.success(f"Modèle '{selected_tpl}' chargé et réponses effacées !")
+                            st.rerun()
+                    with col_tpl_actions[1]:
+                        if st.button("Supprimer 🗑️", key="delete_tpl_btn", use_container_width=True):
+                            delete_template(selected_tpl)
+                            st.success(f"Modèle '{selected_tpl}' supprimé !")
+                            st.rerun()
                 
         with col_num:
             current_questions = get_questions_db()
@@ -245,7 +279,7 @@ else:
                 key="num_questions_input"
             )
             
-        # 3. Édition des questions
+        # 4. Édition des questions
         st.write("Modifier le libellé des questions :")
         with st.form("edit_questions_form"):
             updated_questions = {}
@@ -256,6 +290,13 @@ else:
                     value=default_text,
                     key=f"q_input_{idx}"
                 )
+            
+            # Champ facultatif pour sauvegarder comme modèle
+            template_title = st.text_input(
+                "Titre pour sauvegarder ces questions comme modèle (facultatif) :",
+                placeholder="ex: Sondage Réunion Mensuelle",
+                key="save_template_title_input"
+            )
             
             save_btn = st.form_submit_button("Enregistrer les questions 💾")
             if save_btn:
@@ -268,7 +309,14 @@ else:
                 
                 if not empty_found:
                     save_questions_db(updated_questions)
-                    st.success("Questions enregistrées avec succès !")
+                    
+                    # Si un titre de modèle est renseigné, on le sauvegarde
+                    if template_title.strip():
+                        save_template(template_title, updated_questions)
+                        st.success(f"Questions enregistrées et modèle '{template_title}' sauvegardé !")
+                    else:
+                        st.success("Questions enregistrées avec succès !")
+                        
                     st.rerun()
 
         st.markdown("---")

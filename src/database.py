@@ -1,6 +1,7 @@
 import os
 import sqlite3
 import datetime
+import json
 import pandas as pd
 
 # Chemin absolu de la base de données
@@ -44,6 +45,15 @@ def init_db():
         CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL
+        )
+    """)
+    
+    # Table des modèles de questionnaires sauvegardés (templates)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS templates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL UNIQUE,
+            data_json TEXT NOT NULL
         )
     """)
     
@@ -205,3 +215,37 @@ def reset_questions_db():
     conn.commit()
     conn.close()
     init_db()
+
+def save_template(title: str, questions_dict: dict):
+    """Sauvegarde le modèle de questionnaire sous un titre unique."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    data_json = json.dumps(questions_dict)
+    cursor.execute("""
+        INSERT OR REPLACE INTO templates (title, data_json)
+        VALUES (?, ?)
+    """, (title.strip(), data_json))
+    conn.commit()
+    conn.close()
+
+def get_all_templates() -> dict:
+    """Récupère l'ensemble des modèles de questionnaires sous forme {titre: questions_dict}."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT title, data_json FROM templates ORDER BY title ASC")
+    templates = {}
+    for row in cursor.fetchall():
+        try:
+            templates[row[0]] = json.loads(row[1])
+        except Exception:
+            pass
+    conn.close()
+    return templates
+
+def delete_template(title: str):
+    """Supprime un modèle de questionnaire par son titre."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM templates WHERE title = ?", (title,))
+    conn.commit()
+    conn.close()
