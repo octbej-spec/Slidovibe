@@ -254,18 +254,24 @@ else:
                 return "localhost"
                 
         local_ip = get_local_ip()
-        port_config = 8080
+        port_config = 8501
         try:
             import toml
             config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".streamlit", "config.toml")
             if os.path.exists(config_path):
                 with open(config_path, "r") as f:
                     config_data = toml.load(f)
-                    port_config = config_data.get("server", {}).get("port", 8080)
+                    port_config = config_data.get("server", {}).get("port", 8501)
         except Exception:
             pass
             
-        default_url = f"http://{local_ip}:{port_config}"
+        # Détection de l'environnement Streamlit Cloud (/mount/src/slidovibe)
+        is_streamlit_cloud = "/mount/src" in os.path.abspath(__file__)
+        
+        if is_streamlit_cloud:
+            default_url = "https://radar-ingenierie-stm.streamlit.app"
+        else:
+            default_url = f"http://{local_ip}:{port_config}"
         
         url_partage = st.text_input(
             "Adresse de l'application à partager aux participants :",
