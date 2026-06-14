@@ -271,9 +271,9 @@ else:
             current_questions = get_questions_db()
             num_q_current = len(current_questions)
             num_q_new = st.number_input(
-                "Nombre de questions (1-10) :",
+                "Nombre de questions (1-30) :",
                 min_value=1,
-                max_value=10,
+                max_value=30,
                 value=num_q_current,
                 step=1,
                 key="num_questions_input"
