@@ -113,6 +113,12 @@ mode = st.sidebar.radio(
     index=0
 )
 
+# Option de rafraîchissement automatique uniquement en mode Animateur
+live_update = False
+if mode == "Animateur 🎙️":
+    st.sidebar.markdown("---")
+    live_update = st.sidebar.checkbox("Mise à jour en direct (2s) 🔄", value=True)
+
 # ----------------- MODE PARTICIPANT -----------------
 if mode == "Participant 🙋‍♂️":
     st.subheader("📍 Votre participation en temps réel")
@@ -429,3 +435,12 @@ else:
                 delete_all_responses()
                 st.success("Toutes les réponses ont été effacées avec succès !")
                 st.rerun()
+
+        # Rerun toutes les 2 secondes pour la mise à jour en direct (si coché et pas en cours de test)
+        import sys
+        is_testing = "streamlit.testing" in sys.modules
+        
+        if live_update and not is_testing:
+            import time
+            time.sleep(2)
+            st.rerun()
