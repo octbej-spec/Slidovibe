@@ -35,7 +35,7 @@ def generate_wordcloud(df: pd.DataFrame) -> plt.Figure:
         width=800,
         height=400,
         background_color='white',
-        colormap='Blues',
+        color_func=lambda *args, **kwargs: "black",
         stopwords=FRENCH_STOP_WORDS,
         collocations=False,  # Évite les répétitions de bigrammes
         random_state=42
