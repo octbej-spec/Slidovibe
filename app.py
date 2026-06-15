@@ -406,6 +406,65 @@ else:
                     st.rerun()
 
         st.markdown("---")
+        st.markdown("### 💾 Sauvegarde externe des modèles (Fichier JSON)")
+        st.caption("Streamlit Cloud ayant un système de fichiers temporaire, sauvegarder vos modèles dans un fichier JSON local vous permet de les restaurer à tout moment après un redémarrage.")
+        
+        col_exp, col_imp = st.columns([1, 1])
+        with col_exp:
+            st.write("Exporter tous les modèles :")
+            if saved_templates:
+                import json
+                export_data = {
+                    "templates": [
+                        {"title": title, "questions": q_dict}
+                        for title, q_dict in saved_templates.items()
+                    ]
+                }
+                export_json = json.dumps(export_data, ensure_ascii=False, indent=4)
+                st.download_button(
+                    label="📥 Télécharger les modèles",
+                    data=export_json,
+                    file_name="radar_ingenierie_stm_modeles.json",
+                    mime="application/json",
+                    use_container_width=True,
+                    key="download_templates_btn"
+                )
+            else:
+                st.caption("Aucun modèle disponible pour l'export.")
+                
+        with col_imp:
+            st.write("Importer des modèles :")
+            uploaded_file = st.file_uploader(
+                "Choisir un fichier JSON de modèles :",
+                type=["json"],
+                label_visibility="collapsed",
+                key="upload_templates_file"
+            )
+            if uploaded_file is not None:
+                try:
+                    import_data = json.load(uploaded_file)
+                    if isinstance(import_data, dict) and "templates" in import_data:
+                        count = 0
+                        for tpl in import_data["templates"]:
+                            if "title" in tpl and "questions" in tpl:
+                                q_dict = {}
+                                for k, v in tpl["questions"].items():
+                                    try:
+                                        q_dict[int(k)] = v
+                                    except ValueError:
+                                        q_dict[k] = v
+                                save_template(tpl["title"], q_dict)
+                                count += 1
+                        st.success(f"🎉 {count} modèle(s) importé(s) avec succès ! Rechargement...")
+                        import time
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        st.error("Format de fichier invalide. Le JSON doit contenir une clé 'templates'.")
+                except Exception as e:
+                    st.error(f"Erreur lors de l'import : {e}")
+
+        st.markdown("---")
         st.markdown("### 📢 Partager le sondage")
         
         # Obtenir l'IP locale pour préremplir l'adresse de partage

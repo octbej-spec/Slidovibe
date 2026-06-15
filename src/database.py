@@ -2,12 +2,14 @@ import os
 import sqlite3
 import datetime
 import json
+import re
 import pandas as pd
 
 # Chemin absolu de la base de données
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_DIR = os.path.join(BASE_DIR, "data")
 DB_PATH = os.path.join(DB_DIR, "sondage.db")
+TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 
 def get_connection():
     """Retourne une connexion à la base de données SQLite."""
@@ -56,6 +58,38 @@ def init_db():
             data_json TEXT NOT NULL
         )
     """)
+    
+    # S'assurer que le dossier templates/ existe
+    os.makedirs(TEMPLATES_DIR, exist_ok=True)
+    
+    # Synchroniser les modèles du dossier templates/ vers la base de données
+    for filename in os.listdir(TEMPLATES_DIR):
+        if filename.endswith(".json"):
+            filepath = os.path.join(TEMPLATES_DIR, filename)
+            try:
+                with open(filepath, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                if isinstance(data, dict) and "title" in data and "questions" in data:
+                    tpl_title = data["title"]
+                    tpl_questions = data["questions"]
+                else:
+                    tpl_title = os.path.splitext(filename)[0].replace('_', ' ')
+                    tpl_questions = data
+                
+                # Convertir les clés de questions en entiers
+                q_dict = {}
+                for k, v in tpl_questions.items():
+                    try:
+                        q_dict[int(k)] = v
+                    except ValueError:
+                        q_dict[k] = v
+                
+                cursor.execute("""
+                    INSERT OR REPLACE INTO templates (title, data_json)
+                    VALUES (?, ?)
+                """, (tpl_title.strip(), json.dumps(q_dict)))
+            except Exception as e:
+                pass
     
     # Insérer la question active par défaut (0) si elle n'existe pas
     cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('active_question_id', '0')")
@@ -216,6 +250,12 @@ def reset_questions_db():
     conn.close()
     init_db()
 
+def get_safe_filename(title: str) -> str:
+    """Retourne un nom de fichier sécurisé pour le titre du modèle."""
+    # Remplacer les caractères non alphanumériques par des underscores
+    safe_title = re.sub(r'[^a-zA-Z0-9_\-]', '_', title)
+    return f"{safe_title}.json"
+
 def save_template(title: str, questions_dict: dict):
     """Sauvegarde le modèle de questionnaire sous un titre unique."""
     conn = get_connection()
@@ -227,6 +267,20 @@ def save_template(title: str, questions_dict: dict):
     """, (title.strip(), data_json))
     conn.commit()
     conn.close()
+    
+    # Écrire également dans le dossier templates/
+    os.makedirs(TEMPLATES_DIR, exist_ok=True)
+    safe_name = get_safe_filename(title)
+    filepath = os.path.join(TEMPLATES_DIR, safe_name)
+    try:
+        file_data = {
+            "title": title.strip(),
+            "questions": questions_dict
+        }
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(file_data, f, ensure_ascii=False, indent=4)
+    except Exception as e:
+        print(f"Erreur lors de la sauvegarde du fichier modèle {filepath}: {e}")
 
 def get_all_templates() -> dict:
     """Récupère l'ensemble des modèles de questionnaires sous forme {titre: questions_dict}."""
@@ -249,3 +303,12 @@ def delete_template(title: str):
     cursor.execute("DELETE FROM templates WHERE title = ?", (title,))
     conn.commit()
     conn.close()
+    
+    # Supprimer également du dossier templates/
+    safe_name = get_safe_filename(title)
+    filepath = os.path.join(TEMPLATES_DIR, safe_name)
+    if os.path.exists(filepath):
+        try:
+            os.remove(filepath)
+        except Exception as e:
+            print(f"Erreur lors de la suppression du fichier modèle {filepath}: {e}")
