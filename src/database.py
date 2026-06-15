@@ -10,6 +10,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_DIR = os.path.join(BASE_DIR, "data")
 DB_PATH = os.path.join(DB_DIR, "sondage.db")
 TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
+DB_ERRORS = []
 
 def get_connection():
     """Retourne une connexion à la base de données SQLite."""
@@ -60,10 +61,16 @@ def init_db():
     """)
     
     # S'assurer que le dossier templates/ existe
-    os.makedirs(TEMPLATES_DIR, exist_ok=True)
+    try:
+        os.makedirs(TEMPLATES_DIR, exist_ok=True)
+        files = os.listdir(TEMPLATES_DIR)
+        DB_ERRORS.append(f"📁 templates/ access ok. Files: {files}")
+    except Exception as e:
+        DB_ERRORS.append(f"❌ templates/ access error: {e}")
+        files = []
     
     # Synchroniser les modèles du dossier templates/ vers la base de données
-    for filename in os.listdir(TEMPLATES_DIR):
+    for filename in files:
         if filename.endswith(".json"):
             filepath = os.path.join(TEMPLATES_DIR, filename)
             try:
@@ -89,7 +96,7 @@ def init_db():
                     VALUES (?, ?)
                 """, (tpl_title.strip(), json.dumps(q_dict)))
             except Exception as e:
-                pass
+                DB_ERRORS.append(f"❌ Error loading template {filename}: {e}")
     
     # Insérer la question active par défaut (0) si elle n'existe pas
     cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('active_question_id', '0')")

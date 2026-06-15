@@ -15,7 +15,8 @@ from src.database import (
     reset_questions_db,
     save_template,
     get_all_templates,
-    delete_template
+    delete_template,
+    DB_ERRORS
 )
 from src.wordcloud_utils import generate_wordcloud, FRENCH_STOP_WORDS
 from src.export_utils import export_to_csv, export_to_excel
@@ -121,6 +122,13 @@ live_update = False
 if mode == "Animateur 🎙️":
     st.sidebar.markdown("---")
     live_update = st.sidebar.checkbox("Mise à jour en direct (2s) 🔄", value=True)
+
+# Affichage des logs de diagnostic de base de données à la fin de la sidebar
+st.sidebar.markdown("---")
+st.sidebar.caption("💡 Statut Système / Diagnostic :")
+for err in DB_ERRORS:
+    st.sidebar.caption(err)
+st.sidebar.caption("Version 1.5")
 
 # ----------------- MODE PARTICIPANT -----------------
 if mode == "Participant 🙋‍♂️":
@@ -401,7 +409,7 @@ else:
                         save_template(template_title, updated_questions)
                         st.success(f"Questions enregistrées et modèle '{template_title}' sauvegardé !")
                     else:
-                        st.success("Questions enregistrées avec succès !")
+                        st.success("Questions enregistrées avec succès ! (Note: Aucun modèle n'a été créé car le titre était vide.)")
                         
                     st.rerun()
 
