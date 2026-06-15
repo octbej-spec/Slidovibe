@@ -18,6 +18,8 @@ def get_connection():
 
 def init_db():
     """Initialise la base de données et crée les tables si nécessaires."""
+    global DB_ERRORS
+    DB_ERRORS.clear()
     # S'assurer que le dossier data/ existe
     os.makedirs(DB_DIR, exist_ok=True)
     

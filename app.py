@@ -123,11 +123,8 @@ if mode == "Animateur 🎙️":
     st.sidebar.markdown("---")
     live_update = st.sidebar.checkbox("Mise à jour en direct (2s) 🔄", value=True)
 
-# Affichage des logs de diagnostic de base de données à la fin de la sidebar
+# Affichage de la version à la fin de la sidebar
 st.sidebar.markdown("---")
-st.sidebar.caption("💡 Statut Système / Diagnostic :")
-for err in DB_ERRORS:
-    st.sidebar.caption(err)
 st.sidebar.caption("Version 1.5")
 
 # ----------------- MODE PARTICIPANT -----------------
